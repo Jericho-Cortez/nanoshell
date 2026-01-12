@@ -97,17 +97,46 @@ char **parse_line(char *line)
  */
 void execute(char **args)
 {
-    // TODO: Vérifier si args[0] est NULL (retourner)
+    pid_t pid;
+    int status;
+    char *path;
     
-    // TODO: Si is_builtin(args[0]) -> run_builtin(args); return;
+    // Vérification de base
+    if (args[0] == NULL) {
+        return;
+    }
     
-    // TODO: Sinon, faire fork()
-    //   - Si pid == 0 (fils):
-    //     * Chercher path avec find_in_path()
-    //     * Si NULL: afficher erreur et exit(1)
-    //     * Sinon: execve(path, args, environ)
-    //   - Sinon (parent):
-    //     * waitpid(pid, NULL, 0)
+    // Si builtin, laisser Personne 3 gérer
+    if (is_builtin(args[0])) {
+        run_builtin(args);
+        return;
+    }
+    
+    // Créer un processus fils
+    pid = fork();
+    
+    if (pid == -1) {
+        perror("fork");
+        return;
+    }
+    
+    if (pid == 0) {
+        // ===== PROCESSUS FILS =====
+        path = find_in_path(args[0]);
+        
+        if (path == NULL) {
+            printf("nanoshell: weird, %s is not here... :/\n", args[0]);
+            exit(1);
+        }
+        
+        execve(path, args, environ);
+        perror("execve");
+        exit(1);
+        
+    } else {
+        // ===== PROCESSUS PARENT =====
+        waitpid(pid, &status, 0);
+    }
 }
 
 /**
@@ -118,16 +147,47 @@ void execute(char **args)
  */
 char *find_in_path(char *cmd)
 {
-    // TODO: Si cmd contient '/' -> vérifier avec access() et retourner
+    // Si la commande contient "/", c'est un chemin
+    if (strchr(cmd, '/') != NULL) {
+        if (access(cmd, X_OK) == 0) {
+            return cmd;
+        }
+        return NULL;
+    }
     
-    // TODO: Récupérer PATH avec getenv("PATH")
-    // TODO: Utiliser strtok pour parcourir chaque répertoire
-    // TODO: Pour chaque répertoire:
-    //   - Construire chemin complet avec snprintf()
-    //   - Tester avec access(path, X_OK)
-    //   - Si trouvé, retourner le chemin
+    // Récupérer la variable PATH
+    char *path_env = getenv("PATH");
+    if (path_env == NULL) {
+        return NULL;
+    }
     
-    return NULL; // À remplacer
+    // Copier PATH (car strtok modifie la chaîne)
+    char *path_copy = strdup(path_env);
+    
+    // Buffer pour construire le chemin complet
+    static char full_path[1024];
+    
+    // Découper PATH par ":"
+    char *dir = strtok(path_copy, ":");
+    
+    // Tester chaque répertoire
+    while (dir != NULL) {
+        // Construire le chemin complet
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
+        
+        // Vérifier si le fichier existe et est exécutable
+        if (access(full_path, X_OK) == 0) {
+            free(path_copy);
+            return full_path;
+        }
+        
+        // Passer au répertoire suivant
+        dir = strtok(NULL, ":");
+    }
+    
+    // Pas trouvé
+    free(path_copy);
+    return NULL;
 }
 
 
