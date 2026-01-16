@@ -6,21 +6,21 @@
 #include <string.h>
 int main(void){
 	char line[TAILLE_LIGNE] = {0};
-	char* av[] = {"ls", NULL};
-	//char* env[] = {NULL};
+	char* args[] = {"ls", NULL};
+	char* env[] = {NULL};
 	int pid = 0;
 
 	while (1) {
 		printf("?>");
 		fgets(line, TAILLE_LIGNE, stdin);
-		line[strlen(line) - 1] = 0;
+		line[strlen(line) - 1]= 0;
 		if (strcmp(line,"exit") == 0)
 			{
 			exit(0);
 		}
 		pid = fork();
 		if (pid == 0) {
-			execvp(line, av);
+			execve(line, args, env);
 			exit(-1);
 		}
 	waitpid(pid, NULL, 0);
