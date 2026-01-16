@@ -21,6 +21,7 @@ int main(void){
 		pid = fork();
 		if (pid == 0) {
 			execve(line, args, env);
+			printf("nanoshell: weird, %s is not here... :/\n", args[0]);
 			exit(-1);
 		}
 	waitpid(pid, NULL, 0);
